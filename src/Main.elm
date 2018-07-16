@@ -1,7 +1,9 @@
 module Main exposing (..)
 
-import Html exposing (Html, text, div, h1, ul, li, span)
-import Html.Attributes exposing (src, id, class)
+import Html exposing (Html, div, h1, li, span, text, ul)
+import Html.Attributes exposing (class, id, src)
+import Html.Events exposing (onClick, onDoubleClick)
+
 
 
 ---- MODEL ----
@@ -45,13 +47,55 @@ init =
 ---- UPDATE ----
 
 
-type Msg
-    = NoOp
+type alias Msg =
+    { operation : Operation
+    , at : List Int
+    }
+
+
+type Operation
+    = Add
+    | ToFolder
+    | Toggle
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    ( { model
+        | tree =
+            updateNode msg.operation msg.at model.tree
+      }
+    , Cmd.none
+    )
+
+
+updateNode : Operation -> List Int -> Node -> Node
+updateNode operation address node =
+    case ( operation, address, node ) of
+        ( Add, [], Node name children ) ->
+            Node name
+                (children
+                    ++ [ Leaf "new stuff" ]
+                )
+
+        ( ToFolder, [], Leaf name ) ->
+            Node name [ Leaf "new stuff" ]
+
+        ( _, i :: rest, Node name children ) ->
+            Node name
+                (children
+                    |> List.indexedMap
+                        (\index child ->
+                            if index == i then
+                                updateNode operation rest child
+
+                            else
+                                child
+                        )
+                )
+
+        _ ->
+            node
 
 
 
@@ -72,11 +116,37 @@ treeToView node =
                     [ text name
                     , span [] [ text "[+]" ]
                     ]
-                , ul [] <| (List.map treeToView children) ++ [ li [ class "add" ] [ text "+" ] ]
+                , ul [] <|
+                    List.indexedMap
+                        (\index child ->
+                            treeToView child
+                                |> Html.map
+                                    (\msg ->
+                                        { msg
+                                            | at = index :: msg.at
+                                        }
+                                    )
+                        )
+                        children
+                        ++ [ li
+                                [ class "add"
+                                , onClick
+                                    { operation = Add
+                                    , at = []
+                                    }
+                                ]
+                                [ text "+" ]
+                           ]
                 ]
 
         Leaf name ->
-            li [ class "item" ]
+            li
+                [ class "item"
+                , onDoubleClick
+                    { operation = ToFolder
+                    , at = []
+                    }
+                ]
                 [ div []
                     [ text name ]
                 ]
