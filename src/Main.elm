@@ -48,54 +48,14 @@ init =
 
 
 type alias Msg =
-    { operation : Operation
-    , at : List Int
-    }
-
-
-type Operation
-    = Add
-    | ToFolder
-    | Toggle
+    Node
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( { model
-        | tree =
-            updateNode msg.operation msg.at model.tree
-      }
+    ( { model | tree = msg }
     , Cmd.none
     )
-
-
-updateNode : Operation -> List Int -> Node -> Node
-updateNode operation address node =
-    case ( operation, address, node ) of
-        ( Add, [], Node name children ) ->
-            Node name
-                (children
-                    ++ [ Leaf "new stuff" ]
-                )
-
-        ( ToFolder, [], Leaf name ) ->
-            Node name [ Leaf "new stuff" ]
-
-        ( _, i :: rest, Node name children ) ->
-            Node name
-                (children
-                    |> List.indexedMap
-                        (\index child ->
-                            if index == i then
-                                updateNode operation rest child
-
-                            else
-                                child
-                        )
-                )
-
-        _ ->
-            node
 
 
 
@@ -118,22 +78,27 @@ treeToView node =
                     ]
                 , ul [] <|
                     List.indexedMap
-                        (\index child ->
-                            treeToView child
+                        (\index node ->
+                            treeToView node
                                 |> Html.map
-                                    (\msg ->
-                                        { msg
-                                            | at = index :: msg.at
-                                        }
+                                    (\newNode ->
+                                        Node name
+                                            (children
+                                                |> List.indexedMap
+                                                    (\i oldNode ->
+                                                        if i == index then
+                                                            newNode
+
+                                                        else
+                                                            oldNode
+                                                    )
+                                            )
                                     )
                         )
                         children
                         ++ [ li
                                 [ class "add"
-                                , onClick
-                                    { operation = Add
-                                    , at = []
-                                    }
+                                , onClick (Node name (children ++ [ Leaf "new stuff" ]))
                                 ]
                                 [ text "+" ]
                            ]
@@ -142,10 +107,7 @@ treeToView node =
         Leaf name ->
             li
                 [ class "item"
-                , onDoubleClick
-                    { operation = ToFolder
-                    , at = []
-                    }
+                , onDoubleClick (Node name [ Leaf "new stuff" ])
                 ]
                 [ div []
                     [ text name ]
