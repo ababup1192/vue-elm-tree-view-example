@@ -1,7 +1,9 @@
 module Main exposing (..)
 
-import Html exposing (Html, text, div, h1, ul, li, span)
-import Html.Attributes exposing (src, id, class)
+import Html exposing (Html, div, h1, li, span, text, ul)
+import Html.Attributes exposing (class, id, src)
+import Html.Events exposing (onClick, onDoubleClick)
+
 
 
 ---- MODEL ----
@@ -45,13 +47,15 @@ init =
 ---- UPDATE ----
 
 
-type Msg
-    = NoOp
+type alias Msg =
+    Node
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    ( { model | tree = msg }
+    , Cmd.none
+    )
 
 
 
@@ -72,11 +76,39 @@ treeToView node =
                     [ text name
                     , span [] [ text "[+]" ]
                     ]
-                , ul [] <| (List.map treeToView children) ++ [ li [ class "add" ] [ text "+" ] ]
+                , ul [] <|
+                    List.indexedMap
+                        (\index node ->
+                            treeToView node
+                                |> Html.map
+                                    (\newNode ->
+                                        Node name
+                                            (children
+                                                |> List.indexedMap
+                                                    (\i oldNode ->
+                                                        if i == index then
+                                                            newNode
+
+                                                        else
+                                                            oldNode
+                                                    )
+                                            )
+                                    )
+                        )
+                        children
+                        ++ [ li
+                                [ class "add"
+                                , onClick (Node name (children ++ [ Leaf "new stuff" ]))
+                                ]
+                                [ text "+" ]
+                           ]
                 ]
 
         Leaf name ->
-            li [ class "item" ]
+            li
+                [ class "item"
+                , onDoubleClick (Node name [ Leaf "new stuff" ])
+                ]
                 [ div []
                     [ text name ]
                 ]
